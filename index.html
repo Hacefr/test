@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>Vs. Impostor - Legacy DLC Port</title>
+    
+    <!-- Pixi.js v7.3.2 WebGL Runtime -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.3.2/pixi.min.js"></script>
+    
+    <!-- JSZip v3.10.1 In-Memory Decompressor -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Drag & Drop Archive Ingestion Layer -->
+    <div id="drop-overlay">
+        <div class="drop-card">
+            <h1>VS. IMPOSTOR: LEGACY DLC</h1>
+            <p class="subtitle">Drop your <code>securitydlc_c4037.zip</code> or mod archive below</p>
+            
+            <div id="staged-files-list">
+                <p class="no-files-text">No files loaded. Drag and drop your mod archive here!</p>
+            </div>
+            
+            <div id="status-box" class="hidden">Waiting for mod archive...</div>
+            
+            <button id="start-engine-btn" class="glow-btn hidden">
+                LOAD MODS & START (0 Ready)
+            </button>
+        </div>
+    </div>
+
+    <!-- Freeplay Song Selector Screen -->
+    <div id="freeplay-screen" class="hidden">
+        <header>
+            <div class="title-group">
+                <h2>FREEPLAY</h2>
+                <span class="version-tag">STAGE 1 EDITOR BUILD</span>
+            </div>
+            <div class="header-actions">
+                <span id="mod-counter">0 Songs Ready</span>
+            </div>
+        </header>
+        <div id="song-grid"></div>
+    </div>
+
+    <!-- Loading Screen (Boring or Easter Egg Bar) -->
+    <div id="loading-screen" class="hidden">
+        <!-- 1. Boring Loader -->
+        <div id="boring-loader" class="hidden">
+            <h2 id="boring-text">LOADING...</h2>
+        </div>
+
+        <!-- 2. Easter Egg FNF Health Bar Loader -->
+        <div id="egg-loader" class="hidden">
+            <div id="egg-progress-text">PROGRESS: 0% (Not almost there)</div>
+            <div class="egg-bar-track">
+                <div id="egg-bar-fill"></div>
+                <img id="egg-bar-icon" src="https://dl.dropboxusercontent.com/scl/fi/awn4hs29f6l2eo51mvgcf/Untitled81_20261006202707.png?rlkey=kmxmd51fdr3md5ucnt7ce2y2w&st=6v57dqv8" alt="progress icon">
+            </div>
+        </div>
+    </div>
+
+    <!-- Active WebGL PlayState Container -->
+    <div id="game-container" class="hidden">
+        <video id="video-cutscene" playsinline></video>
+
+        <!-- Stage 1: Key 7 Visual Offset & Alignment Editor Overlay -->
+        <div id="editor-ui" class="hidden">
+            <!-- Sidebar: Scene Layer Tree -->
+            <div id="editor-sidebar">
+                <div class="sidebar-header">
+                    <h3>SCENE INSPECTOR</h3>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span class="help-hint">Press 7 to Exit</span>
+                        <button id="btn-collapse-sidebar" title="Collapse Sidebar (H)">«</button>
+                    </div>
+                </div>
+                <div id="scene-tree"></div>
+            </div>
+
+            <!-- Top Toolbar Controls -->
+            <div id="editor-toolbar">
+                <div class="tool-group">
+                    <button id="btn-toggle-sidebar" class="active" title="Toggle Sidebar (H)">📁 Tree</button>
+                    <button id="btn-flip" title="Flip Sprite Horizontally (F)">⇄ Flip [F]</button>
+                    <button id="btn-undo" title="Undo (Ctrl+Z)">↩ Undo</button>
+                    <button id="btn-redo" title="Redo (Ctrl+Shift+Z)">↪ Redo</button>
+                    <button id="btn-toggle-grid" class="active"># Grid</button>
+                    <button id="btn-toggle-baseline" class="active">━ Floor Line</button>
+                </div>
+
+                <!-- Live Coordinate & Layer Readout -->
+                <div id="editor-coord-display">
+                    Selected: <strong id="lbl-selected-name">None</strong> | 
+                    X: <span id="lbl-coord-x">0</span>px | 
+                    Y: <span id="lbl-coord-y">0</span>px |
+                    Layer: <span id="lbl-coord-z" style="color:#00d2d3;">0</span> 
+                    <small style="color:#747d8c; font-size:0.75rem;">[` / \ to reorder]</small>
+                </div>
+
+                <div class="tool-group">
+                    <button id="btn-copy-config" class="btn-highlight">📋 Copy JSON Config</button>
+                    <button id="btn-close-editor" class="btn-danger">✕ Close [7]</button>
+                </div>
+            </div>
+            
+            <div id="copy-toast" class="hidden">✔ Coordinates copied to clipboard!</div>
+        </div>
+    </div>
+
+    <!-- Loading Screen Controller Logic -->
+    <script>
+        const ICON_UNDER_25 = "https://dl.dropboxusercontent.com/scl/fi/awn4hs29f6l2eo51mvgcf/Untitled81_20261006202707.png?rlkey=kmxmd51fdr3md5ucnt7ce2y2w&st=6v57dqv8";
+        const ICON_PAST_25  = "https://dl.dropboxusercontent.com/scl/fi/0ofhzs7jm495564ja86o6/Untitled81_20261006203042.png?rlkey=k27sap2g0z638pbaz1g7vh99u&st=up8huwii";
+
+        window.LoadingManager = {
+            isEgg: false,
+
+            // Call show(true) for file uploads (100% chance)
+            // Call show(false) for song loading (25% chance)
+            show(isUpload = false) {
+                const screen = document.getElementById('loading-screen');
+                const boring = document.getElementById('boring-loader');
+                const egg = document.getElementById('egg-loader');
+
+                this.isEgg = isUpload ? true : (Math.random() < 0.25);
+
+                if (this.isEgg) {
+                    boring.classList.add('hidden');
+                    egg.classList.remove('hidden');
+                    this.update(0);
+                } else {
+                    egg.classList.add('hidden');
+                    boring.classList.remove('hidden');
+                }
+
+                screen.classList.remove('hidden');
+            },
+
+            // Updates progress from 0 to 100
+            update(percent) {
+                percent = Math.max(0, Math.min(100, Math.round(percent)));
+                if (!this.isEgg) return;
+
+                const fill = document.getElementById('egg-bar-fill');
+                const icon = document.getElementById('egg-bar-icon');
+                const text = document.getElementById('egg-progress-text');
+
+                fill.style.width = percent + '%';
+                icon.style.left = percent + '%';
+
+                if (percent < 25) {
+                    icon.src = ICON_UNDER_25;
+                    text.textContent = `PROGRESS: ${percent}% (Not almost there)`;
+                } else {
+                    icon.src = ICON_PAST_25;
+                    text.textContent = `PROGRESS: ${percent}% (Almost there!)`;
+                }
+            },
+
+            hide() {
+                document.getElementById('loading-screen').classList.add('hidden');
+            }
+        };
+    </script>
+
+    <!-- Engine Scripts -->
+    <script src="core.js"></script>
+    <script src="characters.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
