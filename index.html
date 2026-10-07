@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Vs. Impostor - Legacy DLC Port</title>
     
     <!-- Pixi.js v7.3.2 WebGL Runtime -->
@@ -15,19 +15,22 @@
 </head>
 <body>
 
-    <!-- Drag & Drop Archive Ingestion Layer -->
+    <!-- Drag & Drop Archive Ingestion Layer (Also Clickable for Mobile) -->
     <div id="drop-overlay">
-        <div class="drop-card">
+        <!-- Hidden Native File Input for Mobile Taps -->
+        <input type="file" id="zip-file-input" accept=".zip" class="hidden">
+
+        <div class="drop-card" id="drop-card-clickable" title="Click or tap to choose mod ZIP">
             <h1>VS. IMPOSTOR: LEGACY DLC</h1>
-            <p class="subtitle">Drop your <code>securitydlc_c4037.zip</code> or mod archive below</p>
+            <p class="subtitle">Tap here or drop <code>securitydlc_c4037.zip</code></p>
             
             <div id="staged-files-list">
-                <p class="no-files-text">No files loaded. Drag and drop your mod archive here!</p>
+                <p class="no-files-text">Tap anywhere to browse files or drop archive here!</p>
             </div>
             
             <div id="status-box" class="hidden">Waiting for mod archive...</div>
 
-            <!-- FNF Progress Bar: Appears UNDER status box during file upload (100% chance) -->
+            <!-- FNF Progress Bar under status box -->
             <div id="drop-progress-container" class="hidden">
                 <div id="drop-progress-text" class="egg-progress-text">PROGRESS: 0% (Not almost there)</div>
                 <div class="egg-bar-track">
@@ -50,20 +53,20 @@
                 <span class="version-tag">STAGE 1 EDITOR BUILD</span>
             </div>
             <div class="header-actions">
+                <button id="btn-toggle-mobile" class="btn-util" title="Toggle V-Slice Mobile Layout">📱 Mobile: OFF</button>
+                <button id="btn-fullscreen-toggle" class="btn-util" title="Toggle Fullscreen">⛶ Fullscreen</button>
                 <span id="mod-counter">0 Songs Ready</span>
             </div>
         </header>
         <div id="song-grid"></div>
     </div>
 
-    <!-- Fullscreen Song Loading Screen (z-index: 500, solid black, stops game flashing) -->
+    <!-- Fullscreen Song Loading Screen (Opaque Black) -->
     <div id="loading-screen" class="hidden">
         <div class="loading-content">
-            <!-- Boring Loader elements (Kept for 100% compatibility with game.js) -->
             <h2 id="loading-song-title">LOADING...</h2>
             <p id="loading-sub-text">PREPARING ASSETS</p>
 
-            <!-- Song Load Easter Egg Bar (25% chance) -->
             <div id="egg-loader" class="hidden">
                 <div id="egg-progress-text" class="egg-progress-text">PROGRESS: 0% (Not almost there)</div>
                 <div class="egg-bar-track">
@@ -78,9 +81,31 @@
     <div id="game-container" class="hidden">
         <video id="video-cutscene" playsinline></video>
 
+        <!-- V-Slice Mobile Controls Overlay -->
+        <div id="mobile-hud" class="hidden">
+            <!-- V-Slice Top Right Pause Button -->
+            <button id="mobile-pause-btn">00</button>
+            <button id="mobile-fs-btn">⛶</button>
+
+            <!-- Bottom Thumb Tap Receptors -->
+            <div id="mobile-strum-zone">
+                <div class="touch-button btn-left" data-key="ArrowLeft" data-code="ArrowLeft">
+                    <span>‹</span>
+                </div>
+                <div class="touch-button btn-down" data-key="ArrowDown" data-code="ArrowDown">
+                    <span>⌄</span>
+                </div>
+                <div class="touch-button btn-up" data-key="ArrowUp" data-code="ArrowUp">
+                    <span>⌃</span>
+                </div>
+                <div class="touch-button btn-right" data-key="ArrowRight" data-code="ArrowRight">
+                    <span>›</span>
+                </div>
+            </div>
+        </div>
+
         <!-- Stage 1: Key 7 Visual Offset & Alignment Editor Overlay -->
         <div id="editor-ui" class="hidden">
-            <!-- Sidebar: Scene Layer Tree -->
             <div id="editor-sidebar">
                 <div class="sidebar-header">
                     <h3>SCENE INSPECTOR</h3>
@@ -92,7 +117,6 @@
                 <div id="scene-tree"></div>
             </div>
 
-            <!-- Top Toolbar Controls -->
             <div id="editor-toolbar">
                 <div class="tool-group">
                     <button id="btn-toggle-sidebar" class="active" title="Toggle Sidebar (H)">📁 Tree</button>
@@ -103,7 +127,6 @@
                     <button id="btn-toggle-baseline" class="active">━ Floor Line</button>
                 </div>
 
-                <!-- Live Coordinate & Layer Readout -->
                 <div id="editor-coord-display">
                     Selected: <strong id="lbl-selected-name">None</strong> | 
                     X: <span id="lbl-coord-x">0</span>px | 
@@ -122,19 +145,110 @@
         </div>
     </div>
 
-    <!-- Isolated Scope Progress Script -->
+    <!-- Mobile Adapter & Loading Script -->
     <script>
     (() => {
-        // Prevent default browser file drop reload at root window
-        window.addEventListener('dragover', (e) => e.preventDefault(), false);
-        window.addEventListener('drop', (e) => e.preventDefault(), false);
+        // --- 1. Mobile & Touch Auto-Detection ---
+        window.isMobileMode = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || window.innerWidth <= 850;
+        window.downscroll = window.isMobileMode; // Notes fall from up to down when mobile is active
 
+        const mobileToggleBtn = document.getElementById('btn-toggle-mobile');
+        const mobileHud = document.getElementById('mobile-hud');
+
+        function updateMobileState(enabled) {
+            window.isMobileMode = enabled;
+            window.downscroll = enabled;
+            document.body.classList.toggle('mobile-active', enabled);
+            if (mobileToggleBtn) {
+                mobileToggleBtn.textContent = `📱 Mobile: ${enabled ? 'ON' : 'OFF'}`;
+                mobileToggleBtn.classList.toggle('active', enabled);
+            }
+            if (mobileHud) {
+                mobileHud.classList.toggle('hidden', !enabled);
+            }
+        }
+
+        if (mobileToggleBtn) {
+            mobileToggleBtn.addEventListener('click', () => updateMobileState(!window.isMobileMode));
+        }
+        updateMobileState(window.isMobileMode);
+
+        // --- 2. Fullscreen Handlers ---
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            } else {
+                document.exitFullscreen().catch(() => {});
+            }
+        }
+        document.getElementById('btn-fullscreen-toggle')?.addEventListener('click', toggleFullscreen);
+        document.getElementById('mobile-fs-btn')?.addEventListener('click', toggleFullscreen);
+
+        // --- 3. Click-to-Upload File Manager for Mobile ---
+        const dropCard = document.getElementById('drop-card-clickable');
+        const fileInput = document.getElementById('zip-file-input');
+
+        dropCard?.addEventListener('click', (e) => {
+            // Don't re-trigger if clicking the start button
+            if (e.target.id === 'start-engine-btn') return;
+            fileInput.click();
+        });
+
+        fileInput?.addEventListener('change', (e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+
+            // Synthesize drop event so existing game.js / JSZip logic receives it untouched
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            const dropEvt = new DragEvent('drop', {
+                bubbles: true,
+                cancelable: true,
+                dataTransfer: dataTransfer
+            });
+            dropCard.dispatchEvent(dropEvt);
+        });
+
+        // --- 4. V-Slice Touch Input Bridge ---
+        function fireKey(type, key, code) {
+            window.dispatchEvent(new KeyboardEvent(type, {
+                key: key,
+                code: code,
+                bubbles: true
+            }));
+        }
+
+        document.querySelectorAll('.touch-button').forEach(btn => {
+            const key = btn.dataset.key;
+            const code = btn.dataset.code;
+
+            btn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                btn.classList.add('pressed');
+                fireKey('keydown', key, code);
+            }, { passive: false });
+
+            const release = (e) => {
+                e.preventDefault();
+                btn.classList.remove('pressed');
+                fireKey('keyup', key, code);
+            };
+
+            btn.addEventListener('touchend', release, { passive: false });
+            btn.addEventListener('touchcancel', release, { passive: false });
+        });
+
+        document.getElementById('mobile-pause-btn')?.addEventListener('click', () => {
+            fireKey('keydown', 'Enter', 'Enter');
+            setTimeout(() => fireKey('keyup', 'Enter', 'Enter'), 50);
+        });
+
+        // --- 5. Easter Egg Loading Logic ---
         const URL_UNDER_25 = "https://dl.dropboxusercontent.com/scl/fi/awn4hs29f6l2eo51mvgcf/Untitled81_20261006202707.png?rlkey=kmxmd51fdr3md5ucnt7ce2y2w&st=6v57dqv8";
         const URL_PAST_25  = "https://dl.dropboxusercontent.com/scl/fi/0ofhzs7jm495564ja86o6/Untitled81_20261006203042.png?rlkey=k27sap2g0z638pbaz1g7vh99u&st=up8huwii";
 
-        // Silent in-memory background image cache (no console preload warnings)
-        const cacheA = new Image(); cacheA.src = URL_UNDER_25;
-        const cacheB = new Image(); cacheB.src = URL_PAST_25;
+        new Image().src = URL_UNDER_25;
+        new Image().src = URL_PAST_25;
 
         function updateBar(fillEl, iconEl, textEl, pct) {
             pct = Math.max(0, Math.min(100, Math.round(pct)));
@@ -149,69 +263,49 @@
             }
         }
 
-        // Upload Loader (100% chance, 5-second smooth run under status box)
         let _uploadTimer = null;
-        function startUploadBar() {
-            const container = document.getElementById('drop-progress-container');
-            const fill = document.getElementById('drop-bar-fill');
-            const icon = document.getElementById('drop-bar-icon');
-            const text = document.getElementById('drop-progress-text');
-            if (!container || !fill || !icon || !text) return;
-
-            container.classList.remove('hidden');
-            let start = performance.now();
-            clearInterval(_uploadTimer);
-
-            _uploadTimer = setInterval(() => {
-                let elapsed = performance.now() - start;
-                let pct = Math.min(100, (elapsed / 5000) * 100);
-                updateBar(fill, icon, text, pct);
-                if (pct >= 100) clearInterval(_uploadTimer);
-            }, 50);
-        }
-
-        // Observe status-box for "Scanning" text without interfering with global variables
         const _statusElement = document.getElementById('status-box');
         if (_statusElement) {
             const obs = new MutationObserver(() => {
                 if (!_statusElement.classList.contains('hidden') && _statusElement.textContent.includes('Scanning')) {
-                    startUploadBar();
+                    const cont = document.getElementById('drop-progress-container');
+                    const fill = document.getElementById('drop-bar-fill');
+                    const icon = document.getElementById('drop-bar-icon');
+                    const text = document.getElementById('drop-progress-text');
+                    cont?.classList.remove('hidden');
+                    let start = performance.now();
+                    clearInterval(_uploadTimer);
+                    _uploadTimer = setInterval(() => {
+                        let pct = Math.min(100, ((performance.now() - start) / 5000) * 100);
+                        updateBar(fill, icon, text, pct);
+                        if (pct >= 100) clearInterval(_uploadTimer);
+                    }, 50);
                 }
             });
             obs.observe(_statusElement, { childList: true, subtree: true, attributes: true });
         }
 
-        // Song Load Loader (25% chance of Easter egg bar)
         let _songTimer = null;
         const _loadingScreen = document.getElementById('loading-screen');
-        const _eggLoader = document.getElementById('egg-loader');
-        const _songTitle = document.getElementById('loading-song-title');
-        const _songSub = document.getElementById('loading-sub-text');
-
-        if (_loadingScreen && _eggLoader) {
+        if (_loadingScreen) {
             const songObs = new MutationObserver(() => {
                 if (!_loadingScreen.classList.contains('hidden')) {
                     const isEgg = Math.random() < 0.25;
+                    const eggLoader = document.getElementById('egg-loader');
+                    const songSub = document.getElementById('loading-sub-text');
                     if (isEgg) {
-                        _eggLoader.classList.remove('hidden');
-                        if (_songSub) _songSub.classList.add('hidden');
-                        if (_songTitle) _songTitle.textContent = "LOADING...";
-
-                        const fill = document.getElementById('egg-bar-fill');
-                        const icon = document.getElementById('egg-bar-icon');
-                        const text = document.getElementById('egg-progress-text');
-
+                        eggLoader?.classList.remove('hidden');
+                        songSub?.classList.add('hidden');
                         let start = performance.now();
                         clearInterval(_songTimer);
                         _songTimer = setInterval(() => {
                             let pct = Math.min(100, ((performance.now() - start) / 5000) * 100);
-                            updateBar(fill, icon, text, pct);
+                            updateBar(document.getElementById('egg-bar-fill'), document.getElementById('egg-bar-icon'), document.getElementById('egg-progress-text'), pct);
                             if (pct >= 100) clearInterval(_songTimer);
                         }, 50);
                     } else {
-                        _eggLoader.classList.add('hidden');
-                        if (_songSub) _songSub.classList.remove('hidden');
-                        if (_songTitle) _songTitle.textContent = "LOADING...";
+                        eggLoader?.classList.add('hidden');
+                        songSub?.classList.remove('hidden');
                     }
                 } else {
                     clearInterval(_songTimer);
