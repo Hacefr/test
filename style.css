@@ -19,7 +19,7 @@ html, body {
 }
 
 /* ==========================================================================
-   1. Drag & Drop Overlay
+   1. Drag & Drop Archive Ingestion Layer
    ========================================================================== */
 #drop-overlay {
     position: fixed;
@@ -126,7 +126,59 @@ html, body {
 }
 
 /* ==========================================================================
-   2. Freeplay Screen
+   2. Shared FNF Health Bar Progress Bar Elements (No Glow, Clean)
+   ========================================================================== */
+#drop-progress-container {
+    margin-top: 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
+.egg-progress-text {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.95rem;
+    font-weight: bold;
+    color: #ffffff;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+    width: 480px;
+    max-width: 100%;
+    text-align: left;
+}
+
+.egg-bar-track {
+    position: relative;
+    width: 480px;
+    max-width: 100%;
+    height: 24px;
+    background-color: #ffffff;
+    border: 4px solid #000000;
+    outline: 2px solid #ffffff;
+}
+
+/* No CSS transitions here to completely eliminate stutter/lag */
+.egg-bar-fill {
+    width: 0%;
+    height: 100%;
+    background-color: #00ff00;
+}
+
+.egg-bar-icon {
+    position: absolute;
+    top: 50%;
+    left: 0%;
+    transform: translate(-50%, -50%);
+    width: 46px;
+    height: auto;
+    pointer-events: none;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+}
+
+/* ==========================================================================
+   3. Freeplay Screen
    ========================================================================== */
 #freeplay-screen {
     width: 100vw;
@@ -137,7 +189,7 @@ html, body {
     background: radial-gradient(circle at top, #141724 0%, #060709 100%);
     position: absolute;
     inset: 0;
-    z-index: 40;
+    z-index: 50;
 }
 
 header {
@@ -232,82 +284,50 @@ header h2 {
 }
 
 /* ==========================================================================
-   3. Loading Screen (Boring & Easter Egg Bar)
+   4. Fullscreen Song Loading Screen (Opaque Black, z-index: 500)
    ========================================================================== */
 #loading-screen {
     position: fixed;
     inset: 0;
     width: 100vw;
     height: 100vh;
-    background: #000000;
+    background: #000000 !important;
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 90;
+    z-index: 500; /* Stays above canvas, video cutscene, and game loop */
 }
 
-/* 3A. Boring Loading Text */
-#boring-loader {
+.loading-content {
     text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
 }
 
-#boring-text {
+#loading-song-title {
     font-size: 2rem;
     color: #ffffff;
     letter-spacing: 4px;
     font-weight: 800;
 }
 
-/* 3B. FNF Health Bar Easter Egg Loader */
+#loading-sub-text {
+    font-size: 0.9rem;
+    color: #747d8c;
+    letter-spacing: 2px;
+    font-weight: 600;
+}
+
 #egg-loader {
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: 100%;
-}
-
-#egg-progress-text {
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 1.05rem;
-    font-weight: bold;
-    color: #ffffff;
-    letter-spacing: 1px;
-    margin-bottom: 8px;
-    width: 540px;
-    max-width: 85vw;
-    text-align: left;
-}
-
-.egg-bar-track {
-    position: relative;
-    width: 540px;
-    max-width: 85vw;
-    height: 24px;
-    background-color: #ffffff;
-    border: 4px solid #000000;
-    outline: 2px solid #ffffff;
-}
-
-#egg-bar-fill {
-    width: 0%;
-    height: 100%;
-    background-color: #00ff00;
-    transition: width 0.05s linear;
-}
-
-#egg-bar-icon {
-    position: absolute;
-    top: 50%;
-    left: 0%;
-    transform: translate(-50%, -50%);
-    width: 48px;
-    height: auto;
-    pointer-events: none;
-    transition: left 0.05s linear;
 }
 
 /* ==========================================================================
-   4. Game Viewport & Video Overlay
+   5. Game Viewport & Video Overlay
    ========================================================================== */
 #game-container {
     position: fixed;
@@ -318,7 +338,7 @@ header h2 {
     justify-content: center;
     align-items: center;
     background: #000000;
-    z-index: 50;
+    z-index: 10;
 }
 
 #game-container canvas {
@@ -329,7 +349,6 @@ header h2 {
     aspect-ratio: 16 / 9;
     object-fit: contain;
     outline: none;
-    box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
 }
 
 #video-cutscene {
@@ -339,18 +358,18 @@ header h2 {
     height: 100vh;
     object-fit: contain;
     background: #000000;
-    z-index: 60;
+    z-index: 20;
     display: none;
 }
 
 /* ==========================================================================
-   5. Stage 1 Key 7 Visual Offset & Alignment Editor
+   6. Stage 1 Key 7 Visual Offset & Alignment Editor
    ========================================================================== */
 #editor-ui {
     position: absolute;
     inset: 0;
     pointer-events: none;
-    z-index: 70;
+    z-index: 30;
 }
 
 #editor-sidebar {
@@ -359,10 +378,9 @@ header h2 {
     left: 20px;
     bottom: 30px;
     width: 280px;
-    background: rgba(15, 18, 26, 0.92);
+    background: rgba(15, 18, 26, 0.95);
     border: 1px solid #30363d;
     border-radius: 8px;
-    backdrop-filter: blur(8px);
     display: flex;
     flex-direction: column;
     pointer-events: auto;
@@ -472,10 +490,9 @@ header h2 {
     left: 20px;
     right: 20px;
     height: 44px;
-    background: rgba(15, 18, 26, 0.92);
+    background: rgba(15, 18, 26, 0.95);
     border: 1px solid #30363d;
     border-radius: 8px;
-    backdrop-filter: blur(8px);
     display: flex;
     align-items: center;
     justify-content: space-between;
