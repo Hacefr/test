@@ -10,6 +10,10 @@
     
     <!-- JSZip v3.10.1 In-Memory Decompressor -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+    <!-- Preload custom icons to prevent frame drops/stutter -->
+    <link rel="preload" as="image" href="https://dl.dropboxusercontent.com/scl/fi/awn4hs29f6l2eo51mvgcf/Untitled81_20261006202707.png?rlkey=kmxmd51fdr3md5ucnt7ce2y2w&st=6v57dqv8">
+    <link rel="preload" as="image" href="https://dl.dropboxusercontent.com/scl/fi/0ofhzs7jm495564ja86o6/Untitled81_20261006203042.png?rlkey=k27sap2g0z638pbaz1g7vh99u&st=up8huwii">
     
     <link rel="stylesheet" href="style.css">
 </head>
@@ -26,6 +30,15 @@
             </div>
             
             <div id="status-box" class="hidden">Waiting for mod archive...</div>
+
+            <!-- FNF Progress Bar: Appears UNDER status box during file upload (100% chance) -->
+            <div id="drop-progress-container" class="hidden">
+                <div id="drop-progress-text" class="egg-progress-text">PROGRESS: 0% (Not almost there)</div>
+                <div class="egg-bar-track">
+                    <div id="drop-bar-fill" class="egg-bar-fill"></div>
+                    <img id="drop-bar-icon" class="egg-bar-icon" src="https://dl.dropboxusercontent.com/scl/fi/awn4hs29f6l2eo51mvgcf/Untitled81_20261006202707.png?rlkey=kmxmd51fdr3md5ucnt7ce2y2w&st=6v57dqv8" alt="upload progress icon">
+                </div>
+            </div>
             
             <button id="start-engine-btn" class="glow-btn hidden">
                 LOAD MODS & START (0 Ready)
@@ -47,19 +60,20 @@
         <div id="song-grid"></div>
     </div>
 
-    <!-- Loading Screen (Boring or Easter Egg Bar) -->
+    <!-- Fullscreen Song Loading Screen (z-index: 500, solid black, stops game flashing) -->
     <div id="loading-screen" class="hidden">
-        <!-- 1. Boring Loader -->
-        <div id="boring-loader" class="hidden">
-            <h2 id="boring-text">LOADING...</h2>
-        </div>
+        <div class="loading-content">
+            <!-- Boring Loader elements (Keeps original IDs so game.js never crashes) -->
+            <h2 id="loading-song-title">LOADING...</h2>
+            <p id="loading-sub-text">PREPARING ASSETS</p>
 
-        <!-- 2. Easter Egg FNF Health Bar Loader -->
-        <div id="egg-loader" class="hidden">
-            <div id="egg-progress-text">PROGRESS: 0% (Not almost there)</div>
-            <div class="egg-bar-track">
-                <div id="egg-bar-fill"></div>
-                <img id="egg-bar-icon" src="https://dl.dropboxusercontent.com/scl/fi/awn4hs29f6l2eo51mvgcf/Untitled81_20261006202707.png?rlkey=kmxmd51fdr3md5ucnt7ce2y2w&st=6v57dqv8" alt="progress icon">
+            <!-- Song Load Easter Egg Bar (25% chance) -->
+            <div id="egg-loader" class="hidden">
+                <div id="egg-progress-text" class="egg-progress-text">PROGRESS: 0% (Not almost there)</div>
+                <div class="egg-bar-track">
+                    <div id="egg-bar-fill" class="egg-bar-fill"></div>
+                    <img id="egg-bar-icon" class="egg-bar-icon" src="https://dl.dropboxusercontent.com/scl/fi/awn4hs29f6l2eo51mvgcf/Untitled81_20261006202707.png?rlkey=kmxmd51fdr3md5ucnt7ce2y2w&st=6v57dqv8" alt="song progress icon">
+                </div>
             </div>
         </div>
     </div>
@@ -112,60 +126,91 @@
         </div>
     </div>
 
-    <!-- Loading Screen Controller Logic -->
+    <!-- Automated Loading & Sync Script -->
     <script>
         const ICON_UNDER_25 = "https://dl.dropboxusercontent.com/scl/fi/awn4hs29f6l2eo51mvgcf/Untitled81_20261006202707.png?rlkey=kmxmd51fdr3md5ucnt7ce2y2w&st=6v57dqv8";
         const ICON_PAST_25  = "https://dl.dropboxusercontent.com/scl/fi/0ofhzs7jm495564ja86o6/Untitled81_20261006203042.png?rlkey=k27sap2g0z638pbaz1g7vh99u&st=up8huwii";
 
-        window.LoadingManager = {
-            isEgg: false,
-
-            // Call show(true) for file uploads (100% chance)
-            // Call show(false) for song loading (25% chance)
-            show(isUpload = false) {
-                const screen = document.getElementById('loading-screen');
-                const boring = document.getElementById('boring-loader');
-                const egg = document.getElementById('egg-loader');
-
-                this.isEgg = isUpload ? true : (Math.random() < 0.25);
-
-                if (this.isEgg) {
-                    boring.classList.add('hidden');
-                    egg.classList.remove('hidden');
-                    this.update(0);
-                } else {
-                    egg.classList.add('hidden');
-                    boring.classList.remove('hidden');
-                }
-
-                screen.classList.remove('hidden');
-            },
-
-            // Updates progress from 0 to 100
-            update(percent) {
-                percent = Math.max(0, Math.min(100, Math.round(percent)));
-                if (!this.isEgg) return;
-
-                const fill = document.getElementById('egg-bar-fill');
-                const icon = document.getElementById('egg-bar-icon');
-                const text = document.getElementById('egg-progress-text');
-
-                fill.style.width = percent + '%';
-                icon.style.left = percent + '%';
-
-                if (percent < 25) {
-                    icon.src = ICON_UNDER_25;
-                    text.textContent = `PROGRESS: ${percent}% (Not almost there)`;
-                } else {
-                    icon.src = ICON_PAST_25;
-                    text.textContent = `PROGRESS: ${percent}% (Almost there!)`;
-                }
-            },
-
-            hide() {
-                document.getElementById('loading-screen').classList.add('hidden');
+        function updateBarElements(fillEl, iconEl, textEl, pct) {
+            pct = Math.max(0, Math.min(100, Math.round(pct)));
+            fillEl.style.width = pct + '%';
+            iconEl.style.left = pct + '%';
+            if (pct < 25) {
+                if (iconEl.src !== ICON_UNDER_25) iconEl.src = ICON_UNDER_25;
+                textEl.textContent = `PROGRESS: ${pct}% (Not almost there)`;
+            } else {
+                if (iconEl.src !== ICON_PAST_25) iconEl.src = ICON_PAST_25;
+                textEl.textContent = `PROGRESS: ${pct}% (Almost there!)`;
             }
-        };
+        }
+
+        // 1. Upload Loader: Automatically handles 5-second progress under the status box
+        let uploadTimer = null;
+        function runUploadBar(durationMs = 5000) {
+            const container = document.getElementById('drop-progress-container');
+            const fill = document.getElementById('drop-bar-fill');
+            const icon = document.getElementById('drop-bar-icon');
+            const text = document.getElementById('drop-progress-text');
+            
+            container.classList.remove('hidden');
+            let startTime = performance.now();
+            clearInterval(uploadTimer);
+
+            uploadTimer = setInterval(() => {
+                let elapsed = performance.now() - startTime;
+                let pct = Math.min(100, (elapsed / durationMs) * 100);
+                updateBarElements(fill, icon, text, pct);
+                if (pct >= 100) clearInterval(uploadTimer);
+            }, 50);
+        }
+
+        // Watch #status-box: When it shows "Scanning:", trigger the progress bar underneath it
+        const statusBox = document.getElementById('status-box');
+        const statusObserver = new MutationObserver(() => {
+            if (!statusBox.classList.contains('hidden') && statusBox.textContent.includes('Scanning')) {
+                runUploadBar(5000);
+            }
+        });
+        statusObserver.observe(statusBox, { childList: true, subtree: true, attributes: true });
+
+        // 2. Song Load Handler: 25% chance of showing the Easter egg bar
+        let songTimer = null;
+        const loadingScreen = document.getElementById('loading-screen');
+        const eggLoader = document.getElementById('egg-loader');
+        const songTitle = document.getElementById('loading-song-title');
+        const songSub = document.getElementById('loading-sub-text');
+
+        const loadingObserver = new MutationObserver(() => {
+            if (!loadingScreen.classList.contains('hidden')) {
+                // 25% chance roll
+                const isEgg = Math.random() < 0.25;
+                if (isEgg) {
+                    eggLoader.classList.remove('hidden');
+                    songSub.classList.add('hidden');
+                    songTitle.textContent = "LOADING...";
+
+                    const fill = document.getElementById('egg-bar-fill');
+                    const icon = document.getElementById('egg-bar-icon');
+                    const text = document.getElementById('egg-progress-text');
+
+                    let start = performance.now();
+                    clearInterval(songTimer);
+                    songTimer = setInterval(() => {
+                        let pct = Math.min(100, ((performance.now() - start) / 5000) * 100);
+                        updateBarElements(fill, icon, text, pct);
+                        if (pct >= 100) clearInterval(songTimer);
+                    }, 50);
+                } else {
+                    // Boring loader
+                    eggLoader.classList.add('hidden');
+                    songSub.classList.remove('hidden');
+                    songTitle.textContent = "LOADING...";
+                }
+            } else {
+                clearInterval(songTimer);
+            }
+        });
+        loadingObserver.observe(loadingScreen, { attributes: true, attributeFilter: ['class'] });
     </script>
 
     <!-- Engine Scripts -->
