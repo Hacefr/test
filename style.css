@@ -5,6 +5,7 @@
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     user-select: none;
     -webkit-user-select: none;
+    touch-action: manipulation;
 }
 
 html, body {
@@ -19,7 +20,7 @@ html, body {
 }
 
 /* ==========================================================================
-   1. Drag & Drop Archive Ingestion Layer
+   1. Drag & Drop Layer (Clickable for Mobile)
    ========================================================================== */
 #drop-overlay {
     position: fixed;
@@ -35,15 +36,20 @@ html, body {
     background: rgba(20, 24, 35, 0.95);
     border: 2px dashed #ff334b;
     border-radius: 16px;
-    padding: 35px 50px;
+    padding: 30px 40px;
     text-align: center;
     box-shadow: 0 0 40px rgba(255, 51, 75, 0.25);
     width: 620px;
-    max-width: 90vw;
+    max-width: 92vw;
+    cursor: pointer;
+}
+
+.drop-card:active {
+    border-color: #ff6b81;
 }
 
 .drop-card h1 {
-    font-size: 2.2rem;
+    font-size: 2rem;
     letter-spacing: 2px;
     color: #ff4757;
     margin-bottom: 8px;
@@ -69,7 +75,7 @@ html, body {
     border-radius: 8px;
     padding: 14px;
     margin: 15px 0;
-    max-height: 180px;
+    max-height: 160px;
     overflow-y: auto;
     text-align: left;
 }
@@ -115,18 +121,11 @@ html, body {
     font-size: 1.1rem;
     cursor: pointer;
     box-shadow: 0 0 20px rgba(255, 71, 87, 0.4);
-    transition: all 0.2s ease;
     margin-top: 15px;
 }
 
-.glow-btn:hover {
-    background: #ff6b81;
-    transform: scale(1.03);
-    box-shadow: 0 0 30px rgba(255, 71, 87, 0.6);
-}
-
 /* ==========================================================================
-   2. Shared FNF Health Bar Progress Bar Elements (No Glow, Clean)
+   2. FNF Health Bar Progress Bar Elements
    ========================================================================== */
 #drop-progress-container {
     margin-top: 18px;
@@ -172,7 +171,6 @@ html, body {
     width: 46px;
     height: auto;
     pointer-events: none;
-    image-rendering: -webkit-optimize-contrast;
     image-rendering: crisp-edges;
 }
 
@@ -182,7 +180,7 @@ html, body {
 #freeplay-screen {
     width: 100vw;
     height: 100vh;
-    padding: 30px 50px;
+    padding: 24px 36px;
     display: flex;
     flex-direction: column;
     background: radial-gradient(circle at top, #141724 0%, #060709 100%);
@@ -196,8 +194,8 @@ header {
     justify-content: space-between;
     align-items: center;
     border-bottom: 2px solid #2f3542;
-    padding-bottom: 15px;
-    margin-bottom: 20px;
+    padding-bottom: 12px;
+    margin-bottom: 18px;
 }
 
 .title-group {
@@ -226,7 +224,24 @@ header h2 {
 .header-actions {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 12px;
+}
+
+.btn-util {
+    background: #21262d;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.btn-util.active {
+    background: #238636;
+    border-color: #2ea043;
+    color: #fff;
 }
 
 #mod-counter {
@@ -239,51 +254,42 @@ header h2 {
     flex: 1;
     overflow-y: auto;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 16px;
-    padding-right: 10px;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
 }
 
 .song-card {
     background: #191e2b;
     border: 1px solid #2f3542;
-    padding: 18px;
+    padding: 16px;
     border-radius: 10px;
     cursor: pointer;
-    transition: all 0.2s ease;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    height: 110px;
+    height: 105px;
 }
 
 .song-card:hover {
     border-color: #00d2d3;
-    transform: translateY(-3px);
-    box-shadow: 0 5px 20px rgba(0, 210, 211, 0.25);
     background: #1e2536;
 }
 
 .song-card h3 {
-    font-size: 1.3rem;
+    font-size: 1.25rem;
     color: #ffffff;
-    margin-bottom: 6px;
-    letter-spacing: 1px;
+    margin-bottom: 4px;
 }
 
 .song-meta {
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     color: #747d8c;
     display: flex;
     justify-content: space-between;
 }
 
-.song-meta strong {
-    color: #c9d1d9;
-}
-
 /* ==========================================================================
-   4. Fullscreen Song Loading Screen (Opaque Black, z-index: 500)
+   4. Loading Screen
    ========================================================================== */
 #loading-screen {
     position: fixed;
@@ -319,14 +325,8 @@ header h2 {
     font-weight: 600;
 }
 
-#egg-loader {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
 /* ==========================================================================
-   5. Game Viewport & Video Overlay
+   5. Game Viewport & V-Slice Mobile Controls Overlay
    ========================================================================== */
 #game-container {
     position: fixed;
@@ -361,14 +361,93 @@ header h2 {
     display: none;
 }
 
+/* V-Slice Mobile HUD */
+#mobile-hud {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 35;
+}
+
+/* V-Slice Pause & Fullscreen Buttons (Top Right) */
+#mobile-pause-btn, #mobile-fs-btn {
+    position: absolute;
+    top: 15px;
+    width: 44px;
+    height: 44px;
+    background: rgba(20, 24, 35, 0.7);
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    border-radius: 8px;
+    color: #fff;
+    font-size: 1.1rem;
+    font-weight: 900;
+    pointer-events: auto;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#mobile-pause-btn { right: 15px; }
+#mobile-fs-btn    { right: 68px; }
+
+/* V-Slice Bottom Strum Touch Area */
+#mobile-strum-zone {
+    position: absolute;
+    bottom: 25px;
+    left: 5%;
+    right: 5%;
+    height: 90px;
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+    pointer-events: none;
+}
+
+.touch-button {
+    flex: 1;
+    max-width: 130px;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.08);
+    border: 3px solid rgba(255, 255, 255, 0.4);
+    border-radius: 18px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 2.2rem;
+    color: #ffffff;
+    pointer-events: auto;
+    touch-action: none;
+    transition: transform 0.05s, background 0.05s;
+}
+
+.touch-button.pressed {
+    background: rgba(0, 210, 211, 0.45);
+    border-color: #00d2d3;
+    transform: scale(0.92);
+}
+
+.btn-left  { border-color: rgba(194, 75, 158, 0.6); }
+.btn-down  { border-color: rgba(0, 255, 255, 0.6); }
+.btn-up    { border-color: rgba(18, 250, 5, 0.6); }
+.btn-right { border-color: rgba(249, 54, 54, 0.6); }
+
+/* Hide Enemy Arrows on Mobile Mode */
+body.mobile-active .enemy-strum,
+body.mobile-active [data-strum="opponent"],
+body.mobile-active .opponent-arrow {
+    display: none !important;
+    opacity: 0 !important;
+}
+
 /* ==========================================================================
-   6. Stage 1 Key 7 Visual Offset & Alignment Editor
+   6. Key 7 Visual Offset & Alignment Editor
    ========================================================================== */
 #editor-ui {
     position: absolute;
     inset: 0;
     pointer-events: none;
-    z-index: 30;
+    z-index: 40;
 }
 
 #editor-sidebar {
@@ -384,7 +463,6 @@ header h2 {
     flex-direction: column;
     pointer-events: auto;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
-    transition: transform 0.2s ease, opacity 0.2s ease;
 }
 
 #editor-sidebar.collapsed {
@@ -404,7 +482,6 @@ header h2 {
 .sidebar-header h3 {
     font-size: 0.95rem;
     color: #00d2d3;
-    letter-spacing: 1px;
 }
 
 .help-hint {
@@ -419,13 +496,6 @@ header h2 {
     border-radius: 4px;
     padding: 2px 6px;
     cursor: pointer;
-    font-size: 0.8rem;
-    line-height: 1;
-}
-
-#btn-collapse-sidebar:hover {
-    color: #fff;
-    border-color: #58a6ff;
 }
 
 #scene-tree {
@@ -446,12 +516,6 @@ header h2 {
     background: #161b22;
     border: 1px solid transparent;
     cursor: pointer;
-    transition: 0.15s;
-}
-
-.tree-item:hover {
-    background: #21262d;
-    border-color: #388bfd;
 }
 
 .tree-item.selected {
@@ -459,28 +523,6 @@ header h2 {
     border-color: #58a6ff;
     color: #ffffff;
     font-weight: bold;
-}
-
-.tree-item .eye-btn {
-    background: transparent;
-    border: none;
-    color: #8b949e;
-    font-size: 1rem;
-    cursor: pointer;
-    margin-right: 8px;
-    padding: 0 4px;
-    line-height: 1;
-}
-
-.tree-item.selected .eye-btn {
-    color: #ffffff;
-}
-
-.tree-item .item-label {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 #editor-toolbar {
@@ -497,7 +539,6 @@ header h2 {
     justify-content: space-between;
     padding: 0 16px;
     pointer-events: auto;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
 }
 
 .tool-group {
@@ -515,49 +556,21 @@ header h2 {
     font-size: 0.8rem;
     font-weight: bold;
     cursor: pointer;
-    transition: 0.15s;
-}
-
-.tool-group button:hover {
-    background: #30363d;
-    color: #ffffff;
-}
-
-.tool-group button.active {
-    background: #238636;
-    border-color: #2ea043;
-    color: #ffffff;
 }
 
 .btn-highlight {
     background: #1f6feb !important;
-    border-color: #388bfd !important;
-    color: #ffffff !important;
-}
-
-.btn-highlight:hover {
-    background: #388bfd !important;
+    color: #fff !important;
 }
 
 .btn-danger {
     background: #da3633 !important;
-    border-color: #f85149 !important;
-    color: #ffffff !important;
+    color: #fff !important;
 }
 
 #editor-coord-display {
     font-size: 0.85rem;
     color: #8b949e;
-}
-
-#editor-coord-display strong {
-    color: #00d2d3;
-}
-
-#editor-coord-display span {
-    color: #2ed573;
-    font-family: monospace;
-    font-weight: bold;
 }
 
 #copy-toast {
@@ -569,23 +582,8 @@ header h2 {
     padding: 10px 20px;
     border-radius: 6px;
     font-weight: bold;
-    font-size: 0.9rem;
-    pointer-events: none;
-    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
-    transition: opacity 0.2s;
 }
 
 .hidden {
     display: none !important;
-}
-
-#song-grid::-webkit-scrollbar,
-#scene-tree::-webkit-scrollbar {
-    width: 6px;
-}
-
-#song-grid::-webkit-scrollbar-thumb,
-#scene-tree::-webkit-scrollbar-thumb {
-    background: #30363d;
-    border-radius: 3px;
 }
