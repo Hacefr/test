@@ -10,10 +10,6 @@
     
     <!-- JSZip v3.10.1 In-Memory Decompressor -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-
-    <!-- Preload custom icons to prevent frame drops/stutter -->
-    <link rel="preload" as="image" href="https://dl.dropboxusercontent.com/scl/fi/awn4hs29f6l2eo51mvgcf/Untitled81_20261006202707.png?rlkey=kmxmd51fdr3md5ucnt7ce2y2w&st=6v57dqv8">
-    <link rel="preload" as="image" href="https://dl.dropboxusercontent.com/scl/fi/0ofhzs7jm495564ja86o6/Untitled81_20261006203042.png?rlkey=k27sap2g0z638pbaz1g7vh99u&st=up8huwii">
     
     <link rel="stylesheet" href="style.css">
 </head>
@@ -63,7 +59,7 @@
     <!-- Fullscreen Song Loading Screen (z-index: 500, solid black, stops game flashing) -->
     <div id="loading-screen" class="hidden">
         <div class="loading-content">
-            <!-- Boring Loader elements (Keeps original IDs so game.js never crashes) -->
+            <!-- Boring Loader elements (Kept for 100% compatibility with game.js) -->
             <h2 id="loading-song-title">LOADING...</h2>
             <p id="loading-sub-text">PREPARING ASSETS</p>
 
@@ -126,91 +122,104 @@
         </div>
     </div>
 
-    <!-- Automated Loading & Sync Script -->
+    <!-- Isolated Scope Progress Script -->
     <script>
-        const ICON_UNDER_25 = "https://dl.dropboxusercontent.com/scl/fi/awn4hs29f6l2eo51mvgcf/Untitled81_20261006202707.png?rlkey=kmxmd51fdr3md5ucnt7ce2y2w&st=6v57dqv8";
-        const ICON_PAST_25  = "https://dl.dropboxusercontent.com/scl/fi/0ofhzs7jm495564ja86o6/Untitled81_20261006203042.png?rlkey=k27sap2g0z638pbaz1g7vh99u&st=up8huwii";
+    (() => {
+        // Prevent default browser file drop reload at root window
+        window.addEventListener('dragover', (e) => e.preventDefault(), false);
+        window.addEventListener('drop', (e) => e.preventDefault(), false);
 
-        function updateBarElements(fillEl, iconEl, textEl, pct) {
+        const URL_UNDER_25 = "https://dl.dropboxusercontent.com/scl/fi/awn4hs29f6l2eo51mvgcf/Untitled81_20261006202707.png?rlkey=kmxmd51fdr3md5ucnt7ce2y2w&st=6v57dqv8";
+        const URL_PAST_25  = "https://dl.dropboxusercontent.com/scl/fi/0ofhzs7jm495564ja86o6/Untitled81_20261006203042.png?rlkey=k27sap2g0z638pbaz1g7vh99u&st=up8huwii";
+
+        // Silent in-memory background image cache (no console preload warnings)
+        const cacheA = new Image(); cacheA.src = URL_UNDER_25;
+        const cacheB = new Image(); cacheB.src = URL_PAST_25;
+
+        function updateBar(fillEl, iconEl, textEl, pct) {
             pct = Math.max(0, Math.min(100, Math.round(pct)));
             fillEl.style.width = pct + '%';
             iconEl.style.left = pct + '%';
             if (pct < 25) {
-                if (iconEl.src !== ICON_UNDER_25) iconEl.src = ICON_UNDER_25;
+                if (iconEl.src !== URL_UNDER_25) iconEl.src = URL_UNDER_25;
                 textEl.textContent = `PROGRESS: ${pct}% (Not almost there)`;
             } else {
-                if (iconEl.src !== ICON_PAST_25) iconEl.src = ICON_PAST_25;
+                if (iconEl.src !== URL_PAST_25) iconEl.src = URL_PAST_25;
                 textEl.textContent = `PROGRESS: ${pct}% (Almost there!)`;
             }
         }
 
-        // 1. Upload Loader: Automatically handles 5-second progress under the status box
-        let uploadTimer = null;
-        function runUploadBar(durationMs = 5000) {
+        // Upload Loader (100% chance, 5-second smooth run under status box)
+        let _uploadTimer = null;
+        function startUploadBar() {
             const container = document.getElementById('drop-progress-container');
             const fill = document.getElementById('drop-bar-fill');
             const icon = document.getElementById('drop-bar-icon');
             const text = document.getElementById('drop-progress-text');
-            
-            container.classList.remove('hidden');
-            let startTime = performance.now();
-            clearInterval(uploadTimer);
+            if (!container || !fill || !icon || !text) return;
 
-            uploadTimer = setInterval(() => {
-                let elapsed = performance.now() - startTime;
-                let pct = Math.min(100, (elapsed / durationMs) * 100);
-                updateBarElements(fill, icon, text, pct);
-                if (pct >= 100) clearInterval(uploadTimer);
+            container.classList.remove('hidden');
+            let start = performance.now();
+            clearInterval(_uploadTimer);
+
+            _uploadTimer = setInterval(() => {
+                let elapsed = performance.now() - start;
+                let pct = Math.min(100, (elapsed / 5000) * 100);
+                updateBar(fill, icon, text, pct);
+                if (pct >= 100) clearInterval(_uploadTimer);
             }, 50);
         }
 
-        // Watch #status-box: When it shows "Scanning:", trigger the progress bar underneath it
-        const statusBox = document.getElementById('status-box');
-        const statusObserver = new MutationObserver(() => {
-            if (!statusBox.classList.contains('hidden') && statusBox.textContent.includes('Scanning')) {
-                runUploadBar(5000);
-            }
-        });
-        statusObserver.observe(statusBox, { childList: true, subtree: true, attributes: true });
-
-        // 2. Song Load Handler: 25% chance of showing the Easter egg bar
-        let songTimer = null;
-        const loadingScreen = document.getElementById('loading-screen');
-        const eggLoader = document.getElementById('egg-loader');
-        const songTitle = document.getElementById('loading-song-title');
-        const songSub = document.getElementById('loading-sub-text');
-
-        const loadingObserver = new MutationObserver(() => {
-            if (!loadingScreen.classList.contains('hidden')) {
-                // 25% chance roll
-                const isEgg = Math.random() < 0.25;
-                if (isEgg) {
-                    eggLoader.classList.remove('hidden');
-                    songSub.classList.add('hidden');
-                    songTitle.textContent = "LOADING...";
-
-                    const fill = document.getElementById('egg-bar-fill');
-                    const icon = document.getElementById('egg-bar-icon');
-                    const text = document.getElementById('egg-progress-text');
-
-                    let start = performance.now();
-                    clearInterval(songTimer);
-                    songTimer = setInterval(() => {
-                        let pct = Math.min(100, ((performance.now() - start) / 5000) * 100);
-                        updateBarElements(fill, icon, text, pct);
-                        if (pct >= 100) clearInterval(songTimer);
-                    }, 50);
-                } else {
-                    // Boring loader
-                    eggLoader.classList.add('hidden');
-                    songSub.classList.remove('hidden');
-                    songTitle.textContent = "LOADING...";
+        // Observe status-box for "Scanning" text without interfering with global variables
+        const _statusElement = document.getElementById('status-box');
+        if (_statusElement) {
+            const obs = new MutationObserver(() => {
+                if (!_statusElement.classList.contains('hidden') && _statusElement.textContent.includes('Scanning')) {
+                    startUploadBar();
                 }
-            } else {
-                clearInterval(songTimer);
-            }
-        });
-        loadingObserver.observe(loadingScreen, { attributes: true, attributeFilter: ['class'] });
+            });
+            obs.observe(_statusElement, { childList: true, subtree: true, attributes: true });
+        }
+
+        // Song Load Loader (25% chance of Easter egg bar)
+        let _songTimer = null;
+        const _loadingScreen = document.getElementById('loading-screen');
+        const _eggLoader = document.getElementById('egg-loader');
+        const _songTitle = document.getElementById('loading-song-title');
+        const _songSub = document.getElementById('loading-sub-text');
+
+        if (_loadingScreen && _eggLoader) {
+            const songObs = new MutationObserver(() => {
+                if (!_loadingScreen.classList.contains('hidden')) {
+                    const isEgg = Math.random() < 0.25;
+                    if (isEgg) {
+                        _eggLoader.classList.remove('hidden');
+                        if (_songSub) _songSub.classList.add('hidden');
+                        if (_songTitle) _songTitle.textContent = "LOADING...";
+
+                        const fill = document.getElementById('egg-bar-fill');
+                        const icon = document.getElementById('egg-bar-icon');
+                        const text = document.getElementById('egg-progress-text');
+
+                        let start = performance.now();
+                        clearInterval(_songTimer);
+                        _songTimer = setInterval(() => {
+                            let pct = Math.min(100, ((performance.now() - start) / 5000) * 100);
+                            updateBar(fill, icon, text, pct);
+                            if (pct >= 100) clearInterval(_songTimer);
+                        }, 50);
+                    } else {
+                        _eggLoader.classList.add('hidden');
+                        if (_songSub) _songSub.classList.remove('hidden');
+                        if (_songTitle) _songTitle.textContent = "LOADING...";
+                    }
+                } else {
+                    clearInterval(_songTimer);
+                }
+            });
+            songObs.observe(_loadingScreen, { attributes: true, attributeFilter: ['class'] });
+        }
+    })();
     </script>
 
     <!-- Engine Scripts -->
