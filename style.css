@@ -158,7 +158,6 @@ html, body {
     outline: 2px solid #ffffff;
 }
 
-/* No CSS transitions here to completely eliminate stutter/lag */
 .egg-bar-fill {
     width: 0%;
     height: 100%;
@@ -295,7 +294,7 @@ header h2 {
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 500; /* Stays above canvas, video cutscene, and game loop */
+    z-index: 500;
 }
 
 .loading-content {
